@@ -1,0 +1,23 @@
+trigger:
+  - main
+  - pr
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    submodules: true
+  - task: NodeTool@1
+    inputs:
+      version: '>=20'  
+  - task: AzureStaticWebApp@0
+    inputs:
+      app_location: 'vital-paws-frontend'
+      app_build_command: 'npm run build'
+      output_location: 'dist'
+      skip_api_build: true
+      verbose: true
+      azure_static_web_apps_api_token: '$(deployment_token)'
+      production_branch: 'main'
+  
