@@ -94,6 +94,5 @@ def find_respiratory_rate():
 def main():
     pass
 
-
 if __name__ == '__main__':
-    main()
+    app.run()
