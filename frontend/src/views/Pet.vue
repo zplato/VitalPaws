@@ -1,5 +1,7 @@
 <script setup>
 
+import Chart from '../components/Chart.vue'
+
 </script>
 
 <template>
@@ -80,6 +82,16 @@
           </v-card-text>
         </v-card>
 
+
+        <v-card class="mx-auto">
+          <v-card-title>
+            Chart
+          </v-card-title>
+          <v-card-text>
+            <Chart />
+          </v-card-text>
+        </v-card>
+
       </v-col>
 
     </v-row>
@@ -142,6 +154,10 @@ export default {
       snackbarMessage: '',
       deleteConfirmation: false,
       deleteId: null,
+      chartData: {
+        labels: ['January', 'February', 'March'],
+        datasets: [{ data: [40, 20, 12] }]
+      }
     }
   },
   methods: {
@@ -192,13 +208,15 @@ export default {
           '"Time (s)"', 
           '"Acceleration x(m / s ^ 2)"',
           '"Acceleration y(m / s ^ 2)"',
-          '"Acceleration z(m / s ^ 2)"'
+          '"Acceleration z(m / s ^ 2)"',
+          '"Absolute acceleration (m/s^2)"'
       ]
 
       let data = headers.join(',') + '\n'
 
       recording.records.forEach( (record) => {
-        data += `"${record.time}","${record.x}","${record.y}","${record.z}"` + "\n"
+        data += `"${record.time}","${record.x}","${record.y}","${record.z}"` 
+        data += `,"${Math.sqrt(record.x**2 + record.y**2 + record.z**2)}"\n`
       })
 
 
