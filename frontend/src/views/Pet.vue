@@ -83,12 +83,12 @@ import Chart from '../components/Chart.vue'
         </v-card>
 
 
-        <v-card class="mx-auto">
+        <v-card v-if="false" class="mx-auto">
           <v-card-title>
             Chart
           </v-card-title>
           <v-card-text>
-            <Chart />
+            <!-- <Chart /> -->
           </v-card-text>
         </v-card>
 
@@ -148,16 +148,14 @@ export default {
       records: [],
       count: 0,
       startTime: 0,
+      endTime: process.env.RECORDING_LIMIT_IN_SECONDS || 60,
       isRecording: false,
       recordings: [],
       snackbar: false,
       snackbarMessage: '',
       deleteConfirmation: false,
       deleteId: null,
-      chartData: {
-        labels: ['January', 'February', 'March'],
-        datasets: [{ data: [40, 20, 12] }]
-      }
+
     }
   },
   methods: {
@@ -192,15 +190,19 @@ export default {
     logger(data){
 
       let timeDeltaInSeconds = (( performance.timeOrigin + performance.now() ) - this.startTime) / 1000
-
-      this.records.push({
-        x: data.acceleration.x,
-        y: data.acceleration.y,
-        z: data.acceleration.z,
-        time: timeDeltaInSeconds
-      })
-
-      this.count = this.records.length
+      
+      if(timeDeltaInSeconds >= this.endTime){
+        this.stopRecording()
+      }else{
+        this.records.push({
+          x: data.acceleration.x,
+          y: data.acceleration.y,
+          z: data.acceleration.z,
+          time: timeDeltaInSeconds
+        })
+  
+        this.count = this.records.length
+      }
     
     },
     downloadDataAsCSV(recording){
@@ -256,7 +258,7 @@ export default {
     },
   },
   async created() {
-
+    console.log(this.endTime)
     // if(isDeviceMotionSupported() && !isPermissionRequired() ) {
     //   this.sensorPermission = true
     // }
