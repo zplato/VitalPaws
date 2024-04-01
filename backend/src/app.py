@@ -1,19 +1,23 @@
 import random
-from flask import Flask
+from flask import Flask, jsonify
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats
 from scipy.signal import find_peaks, argrelextrema
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def process_data():
     respirations = str(random.randint(10, 50))
-    print("HELLO WORLD")
-    return "Respiratory Rate: {0}".format(respirations)
+    return jsonify({ 
+        "success": True, 
+        "respirations": respirations 
+    })
 
 
 def find_outliers_iqr(df):

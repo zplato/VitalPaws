@@ -1,5 +1,7 @@
 <script setup>
 
+import Chart from '../components/Chart.vue'
+
 </script>
 
 <template>
@@ -61,8 +63,19 @@
           <v-card-text>
             <v-list lines="two" v-if="recordings?.length > 0">
               <v-list-item v-for="recording in recordings" :key="recording.id" :subtitle="`Recording #${recording.id}`">
-                <p>{{ recording.records.length }} data points recorded.</p>
-                <p>{{ new Date(recording.date).toLocaleString() }}</p>
+
+                <template v-slot:prepend>
+                    <v-chip class="mr-3" color="secondary" v-if="recording.processedData">
+                      {{ recording.processedData.respirations || 0 }}
+                    </v-chip>
+                </template>
+                <v-row>
+                  <v-col>
+                    <p>{{ recording.records.length }} data points recorded.</p>
+                    <p>{{ new Date(recording.date).toLocaleString() }}</p>
+                  </v-col>
+                </v-row>
+
 
 
                 <template v-slot:append>
@@ -77,6 +90,16 @@
             </v-list>
             <p v-else>No recordings found</p>
 
+          </v-card-text>
+        </v-card>
+
+
+        <v-card v-if="false" class="mx-auto">
+          <v-card-title>
+            Chart
+          </v-card-title>
+          <v-card-text>
+            <!-- <Chart /> -->
           </v-card-text>
         </v-card>
 
@@ -99,12 +122,26 @@
     <v-container>
       <v-row>
         <v-col>
-          <p v-if="isRecording">Recording.... ({{ count }} records)</p>
-          <p v-else>Recording Complete! Save ({{ count }}) Records? </p>
-          <v-btn color="primary" class="mt-5" v-if="isRecording" @click="stopRecording">Stop Recording</v-btn>
-          <v-btn color="primary" class="mt-5 mr-3" v-if="!isRecording" @click="saveRecording">Save</v-btn>
-          <v-btn color="primary" variant="tonal" class="mt-5" v-if="!isRecording"
-            @click="cancelRecording">Cancel</v-btn>
+          <section v-if="isRecording">
+            <h4>Recording...</h4>
+            <v-row>
+              <v-col>
+                Records: {{ count }}
+              </v-col>
+              <v-col>
+                Time Remaining: {{ countDown }}
+              </v-col>
+            </v-row>
+            <v-btn color="primary" class="mt-5" v-if="isRecording" @click="stopRecording">Stop Recording</v-btn>
+          </section>
+
+          <section v-else>
+            <h4>Recording Complete</h4>
+            <p>Save ({{ count }}) Records? </p>
+            <v-btn color="primary" class="mt-5 mr-3" v-if="!isRecording" @click="saveRecording">Save</v-btn>
+            <v-btn color="primary" variant="tonal" class="mt-5" v-if="!isRecording"
+              @click="cancelRecording">Cancel</v-btn>
+          </section>
         </v-col>
       </v-row>
     </v-container>
@@ -126,6 +163,7 @@ import { toRaw } from 'vue';
 import { db } from '../db';
 import { beginMotionDetection, endMotionDetection } from '../DeviceMotion'
 
+
 export default {
   name: 'Pet',
   data() {
@@ -136,12 +174,15 @@ export default {
       records: [],
       count: 0,
       startTime: 0,
+      endTime: import.meta.env.VITE_RECORDING_LIMIT_IN_SECONDS || 60,
+      countDown: import.meta.env.VITE_RECORDING_LIMIT_IN_SECONDS || 60,
       isRecording: false,
       recordings: [],
       snackbar: false,
       snackbarMessage: '',
       deleteConfirmation: false,
       deleteId: null,
+
     }
   },
   methods: {
@@ -170,39 +211,50 @@ export default {
     stopRecording() {
       endMotionDetection(this.logger)
       this.isRecording = false
+      this.countDown = 0
       console.log(this.records)
     },
 
     logger(data){
 
       let timeDeltaInSeconds = (( performance.timeOrigin + performance.now() ) - this.startTime) / 1000
-
-      this.records.push({
-        x: data.acceleration.x,
-        y: data.acceleration.y,
-        z: data.acceleration.z,
-        time: timeDeltaInSeconds
-      })
-
-      this.count = this.records.length
+      
+      // time remaining in recording
+      this.countDown = Math.ceil(this.endTime-timeDeltaInSeconds)
+      if(timeDeltaInSeconds >= this.endTime){
+        this.stopRecording()
+      }else{
+        this.records.push({
+          x: data.acceleration.x,
+          y: data.acceleration.y,
+          z: data.acceleration.z,
+          time: timeDeltaInSeconds
+        })
+  
+        this.count = this.records.length
+      }
     
     },
-    downloadDataAsCSV(recording){
+    getCSVasBlob(){
+      let records = toRaw(this.records)
       const headers = [
-          '"Time (s)"', 
-          '"Acceleration x(m / s ^ 2)"',
-          '"Acceleration y(m / s ^ 2)"',
-          '"Acceleration z(m / s ^ 2)"'
+        '"Time (s)"',
+        '"Acceleration x(m / s ^ 2)"',
+        '"Acceleration y(m / s ^ 2)"',
+        '"Acceleration z(m / s ^ 2)"',
+        '"Absolute acceleration (m/s^2)"'
       ]
 
       let data = headers.join(',') + '\n'
 
-      recording.records.forEach( (record) => {
-        data += `"${record.time}","${record.x}","${record.y}","${record.z}"` + "\n"
+      records.forEach((record) => {
+        data += `"${record.time}","${record.x || 0}","${record.y || 0}","${record.z || 0}"`
+        data += `,"${Math.sqrt(record.x ** 2 + record.y ** 2 + record.z ** 2) || 0}"\n`
       })
-
-
-      let blob = new Blob([decodeURIComponent('%ef%bb%bf') , data], { type: 'text/csv;charset=utf-8'});
+      return new Blob([decodeURIComponent('%ef%bb%bf'), data], { type: 'text/csv;charset=utf-8' });
+    },
+    downloadDataAsCSV(recording){
+      let blob = this.getCSVasBlob()
       let url = window.URL.createObjectURL(blob);
       let a = document.createElement('a');
       a.href = url;
@@ -211,9 +263,14 @@ export default {
     },
     async saveRecording(){
       console.log('saving')
+
+      // Process the data
+      let results = await this.processRecording()
+
       await db.recordings.put({
         petId: this.pet.id,
         date: Date.now(),
+        processedData: results || null,
         records: toRaw(this.records)
       })
       this.cancelRecording()
@@ -236,9 +293,24 @@ export default {
       this.deleteId = id
       this.deleteConfirmation = true
     },
+    async processRecording(){
+      const endpoint = import.meta.env.VITE_API_ENDPOINT || 'https://api.vitalpaws.info/'
+
+      var data = new FormData()
+      data.append('file', new File([this.getCSVasBlob()], 'motion_data.csv'))
+
+      try {
+        let response = await fetch(endpoint, {
+          method: 'POST',
+          body: data
+        })
+        return await response.json() // if the response is a JSON object
+      } catch (error) {
+        console.log(error)
+      }
+    }
   },
   async created() {
-
     // if(isDeviceMotionSupported() && !isPermissionRequired() ) {
     //   this.sensorPermission = true
     // }
