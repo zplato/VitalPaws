@@ -63,8 +63,19 @@ import Chart from '../components/Chart.vue'
           <v-card-text>
             <v-list lines="two" v-if="recordings?.length > 0">
               <v-list-item v-for="recording in recordings" :key="recording.id" :subtitle="`Recording #${recording.id}`">
-                <p>{{ recording.records.length }} data points recorded.</p>
-                <p>{{ new Date(recording.date).toLocaleString() }}</p>
+
+                <template v-slot:prepend>
+                    <v-chip class="mr-3" color="secondary" v-if="recording.processedData">
+                      {{ recording.processedData.respirations || 0 }}
+                    </v-chip>
+                </template>
+                <v-row>
+                  <v-col>
+                    <p>{{ recording.records.length }} data points recorded.</p>
+                    <p>{{ new Date(recording.date).toLocaleString() }}</p>
+                  </v-col>
+                </v-row>
+
 
 
                 <template v-slot:append>
@@ -128,7 +139,8 @@ import Chart from '../components/Chart.vue'
             <h4>Recording Complete</h4>
             <p>Save ({{ count }}) Records? </p>
             <v-btn color="primary" class="mt-5 mr-3" v-if="!isRecording" @click="saveRecording">Save</v-btn>
-            <v-btn color="primary" variant="tonal" class="mt-5" v-if="!isRecording" @click="cancelRecording">Cancel</v-btn>
+            <v-btn color="primary" variant="tonal" class="mt-5" v-if="!isRecording"
+              @click="cancelRecording">Cancel</v-btn>
           </section>
         </v-col>
       </v-row>
