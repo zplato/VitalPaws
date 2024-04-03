@@ -1,5 +1,4 @@
 import { fileURLToPath, URL } from 'node:url'
-import 'dotenv/config'
 
 
 import { defineConfig } from 'vite'
