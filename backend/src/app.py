@@ -1,22 +1,57 @@
+import os
 import random
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from flask_restful import Api
 from scipy import stats
-from scipy.signal import find_peaks, argrelextrema
+from scipy.signal import argrelextrema
 from flask_cors import CORS
 
-app = Flask(__name__)
-CORS(app)
+vital_app = Flask(__name__)
+CORS(vital_app)
+api = Api(vital_app)
+
+# Define allowed files
+ALLOWED_EXTENSIONS = {'.csv'}
 
 
-@app.route('/', methods=['GET', 'POST'])
-def process_data():
+# Home route ('/')
+# Example endpoint, left in code to use as a reference for endpoint configuration
+#   HTTP GET Request  - returns a random integer as JSON
+#   HTTP POST Request - post a file (.csv), read it in and then return a random integer as JSON
+@vital_app.route('/', methods=['GET', 'POST'])
+def demo_home_endpoint():
     respirations = str(random.randint(10, 50))
-    return jsonify({ 
-        "success": True, 
-        "respirations": respirations 
+    if request.method == 'GET':
+        return jsonify({
+            "success": True,
+            "respirations": respirations })
+    elif request.method == 'POST':
+        file = request.files.get('csv_file')  # Fetch file from POST request
+        ext = os.path.splitext(file.filename)[-1].lower()  # Split the extension from the file and normalise it to lowercase.
+        if ext in ALLOWED_EXTENSIONS:
+            return jsonify({
+                "File Accepted": True,
+                "respirations": respirations})
+        else:
+            return jsonify({
+                "File Accepted": False,
+                "respirations": respirations})
+
+
+# process_data route ('/process')
+# Example endpoint, left in code to use as a reference for endpoint configuration
+@vital_app.route('/process', methods=['POST'])
+def process_data_endpoint():
+    csv_file = request.files.get('csv_file')  # Fetch file from POST request
+    ext = os.path.splitext(csv_file.filename)[-1].lower()  # Split the extension from the file
+    if ext in ALLOWED_EXTENSIONS:
+        respirations = find_respiratory_rate(csv_file)
+    return jsonify({
+        "success": True,
+        "respirations": respirations
     })
 
 
@@ -30,8 +65,8 @@ def find_outliers_iqr(df):
     return outliers
 
 
-def find_respiratory_rate():
-    raw_data = pd.read_excel('TestData/Acceleration_with_g_2024-03-02_20-03-27_cat_24.xls', sheet_name='Raw Data')
+def find_respiratory_rate(csv_file):
+    raw_data = pd.read_csv(csv_file)
     print(raw_data.head())
 
     # Plot All raw_data Relative to X
@@ -94,9 +129,15 @@ def find_respiratory_rate():
     print("max outlier value: " + str(outliers.max()))
     print("min outlier value: " + str(outliers.min()))
 
+    return str(random.randint(10, 50))  # TODO - Derive a respiration num from the algorithm
 
+
+# Main method invoked from the boiler plate when running the file
 def main():
-    pass
+    # Run the flask app (defaults to running on http://127.0.0.1:5000)
+    vital_app.run()
 
+
+# Python boiler plate
 if __name__ == '__main__':
-    app.run()
+    main()
