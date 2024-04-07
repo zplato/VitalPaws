@@ -67,7 +67,7 @@ def find_outliers_iqr(df):
 
 def find_respiratory_rate(csv_file):
     raw_data = pd.read_csv(csv_file)
-    print(raw_data.head())
+    # print(raw_data.head())
 
     # Plot All raw_data Relative to X
     # raw_data.plot(x="Time (s)")
@@ -79,13 +79,13 @@ def find_respiratory_rate(csv_file):
 
     # Plot All data Relative to X
     raw_data.plot(x="Time (s)", y="Absolute acceleration (m/s^2)", title='raw data')
-    plt.show()
+    # plt.show()
 
     # Remove outliers and replot
     # Outliers = anything > 2 standard deviations from the mean
     raw_data = raw_data[np.abs(stats.zscore(raw_data['Absolute acceleration (m/s^2)'])) < 3]
     raw_data.plot(x="Time (s)", y="Absolute acceleration (m/s^2)", title='raw data with outliers removed')
-    plt.show()
+    # plt.show()
 
     # Get rolling mean with window_size and plot it on top of raw_data
     window_size = 10
@@ -96,7 +96,7 @@ def find_respiratory_rate(csv_file):
     # Plot Mean on top of raw data
     raw_data.plot(x="Time (s)", y=rolling_window_col_name, figsize=(16, 8),
                   title='raw data smoothed with rolling mean (window = 10)')
-    plt.show()
+    # plt.show()
 
     # Find the peaks of the SMA dataset using a relative threshold
     raw_data['min'] = raw_data['SMA' + str(window_size)][
@@ -110,9 +110,12 @@ def find_respiratory_rate(csv_file):
     #                raw_data['SMA' + str(window_size)].shift(-1) < raw_data['SMA' + str(window_size)]) & (
     #                    raw_data['SMA' + str(window_size)] > threshold)]
 
+
     n = 100
     raw_data['max'] = raw_data.iloc[argrelextrema(raw_data['SMA' + str(window_size)].values, np.greater_equal,
                                                   order=n)[0]]['SMA' + str(window_size)]
+
+    num_respirations = str(raw_data['max'].notnull().value_counts().loc[True])
 
     plt.plot(raw_data["Time (s)"], raw_data['SMA' + str(window_size)], label="SMA" + str(window_size))
     # plt.scatter(raw_data.index, raw_data['min'], c='g')
@@ -121,15 +124,15 @@ def find_respiratory_rate(csv_file):
     plt.ylabel("Absolute acceleration (m/s^2) Vs. ")
     plt.legend(loc="upper left")
     plt.title("Pet Respiratory Rate (RR) Measured with Accelerometer")
-    plt.show()
+    # plt.show()
 
     # Find and remove outliers from the dataset
-    outliers = find_outliers_iqr(raw_data["Absolute acceleration (m/s^2)"])
-    print("number of outliers: " + str(len(outliers)))
-    print("max outlier value: " + str(outliers.max()))
-    print("min outlier value: " + str(outliers.min()))
+    # outliers = find_outliers_iqr(raw_data["Absolute acceleration (m/s^2)"])
+    # print("number of outliers: " + str(len(outliers)))
+    # print("max outlier value: " + str(outliers.max()))
+    # print("min outlier value: " + str(outliers.min()))
 
-    return str(random.randint(10, 50))  # TODO - Derive a respiration num from the algorithm
+    return num_respirations
 
 
 # Main method invoked from the boiler plate when running the file

@@ -51,7 +51,7 @@ class TestBackendEndpoints(unittest.TestCase):
 
             # Check if the response status code is 200 (or any other expected status code)
             self.assertEqual(response.status_code, 200)
-
+            print(response.data)
 
 
 if __name__ == '__main__':
