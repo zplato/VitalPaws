@@ -65,9 +65,9 @@ import Chart from '../components/Chart.vue'
               <v-list-item v-for="recording in recordings" :key="recording.id" :subtitle="`Recording #${recording.id}`">
 
                 <template v-slot:prepend>
-                    <v-chip class="mr-3" color="secondary" v-if="recording.processedData">
-                      {{ recording.processedData.respirations || 0 }}
-                    </v-chip>
+                  <v-chip class="mr-3" color="secondary" v-if="recording.processedData">
+                    {{ recording.processedData.respirations || 0 }}
+                  </v-chip>
                 </template>
                 <v-row>
                   <v-col>
@@ -102,9 +102,22 @@ import Chart from '../components/Chart.vue'
             <!-- <Chart /> -->
           </v-card-text>
         </v-card>
-
       </v-col>
 
+    </v-row>
+
+    <v-row>
+      <v-col>
+        <v-expansion-panels>
+          <v-expansion-panel>
+            <v-expansion-panel-title>Debug Info</v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <p><strong>Processing Endpoint</strong>: <code>{{ api_endpoint }}</code></p>
+              <p><strong>Recording Length</strong>: <code>{{ countDown }}s</code></p>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-col>
     </v-row>
   </v-container>
   <v-snackbar v-model="snackbar" vertical>
@@ -137,8 +150,10 @@ import Chart from '../components/Chart.vue'
 
           <section v-else>
             <h4>Recording Complete</h4>
-            <p>Save ({{ count }}) Records? </p>
-            <v-btn color="primary" class="mt-5 mr-3" v-if="!isRecording" @click="saveRecording">Save</v-btn>
+            <p v-if="!isProcessing">Save ({{ count }}) Records? </p>
+            <p v-else>Processing...</p>
+            <v-btn color="primary" class="mt-5 mr-3" v-if="!isRecording" @click.once="saveRecording"
+              :loading="isProcessing">Save</v-btn>
             <v-btn color="primary" variant="tonal" class="mt-5" v-if="!isRecording"
               @click="cancelRecording">Cancel</v-btn>
           </section>
@@ -146,6 +161,7 @@ import Chart from '../components/Chart.vue'
       </v-row>
     </v-container>
   </v-navigation-drawer>
+
 </template>
 
 <style>
@@ -176,7 +192,9 @@ export default {
       startTime: 0,
       endTime: import.meta.env.VITE_RECORDING_LIMIT_IN_SECONDS || 60,
       countDown: import.meta.env.VITE_RECORDING_LIMIT_IN_SECONDS || 60,
+      api_endpoint: import.meta.env.VITE_API_ENDPOINT || 'https://api.vitalpaws.info/',
       isRecording: false,
+      isProcessing: false,
       recordings: [],
       snackbar: false,
       snackbarMessage: '',
@@ -262,17 +280,20 @@ export default {
       a.click();
     },
     async saveRecording(){
-      console.log('saving')
+      this.isProcessing = true
+      console.log('processing...')
 
       // Process the data
       let results = await this.processRecording()
 
+      console.log('Saving...')
       await db.recordings.put({
         petId: this.pet.id,
         date: Date.now(),
         processedData: results || null,
         records: toRaw(this.records)
       })
+      this.isProcessing = false
       this.cancelRecording()
     },
     async deleteRecording(){
@@ -294,18 +315,18 @@ export default {
       this.deleteConfirmation = true
     },
     async processRecording(){
-      const endpoint = import.meta.env.VITE_API_ENDPOINT || 'https://api.vitalpaws.info/'
 
       var data = new FormData()
       data.append('file', new File([this.getCSVasBlob()], 'motion_data.csv'))
 
       try {
-        let response = await fetch(endpoint, {
+        let response = await fetch(this.api_endpoint, {
           method: 'POST',
           body: data
         })
         return await response.json() // if the response is a JSON object
       } catch (error) {
+        alert(`An error occurred while processing the data: ${error}`)
         console.log(error)
       }
     }
