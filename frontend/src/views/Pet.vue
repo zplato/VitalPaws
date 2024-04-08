@@ -71,7 +71,7 @@ import Chart from '../components/Chart.vue'
                 </template> -->
                 <v-row>
                   <v-col>
-                    <p>Readings: {{ recording.records.length }},  Respirations: {{ recording.processedData.respirations || "N/A" }}</p>
+                    <p>Readings: {{ recording.records.length }},  Respirations: {{ recording?.processedData?.respirations || "N/A" }}</p>
                     <p>{{ new Date(recording.date).toLocaleString() }}</p>
                   </v-col>
                 </v-row>
@@ -372,8 +372,9 @@ export default {
 
     // Set VITE_USE_FAKE_SENSOR_DATA to true in .env to use fake sensor data
     // Helpful when testing on a device without sensors (like a desktop)
-    const useFakeSensorData = import.meta.env.VITE_USE_FAKE_SENSOR_DATA || false
+    const useFakeSensorData = (import.meta.env?.VITE_USE_FAKE_SENSOR_DATA === 'true') || false
     if (useFakeSensorData){
+      console.log('Using fake sensor data')
       let csv = await fetch('/test2.csv')
       this.testCSV = await csv.text()
     }
