@@ -239,9 +239,9 @@ export default {
       let records = toRaw(this.records)
       const headers = [
         '"Time (s)"',
-        '"Acceleration x(m / s ^ 2)"',
-        '"Acceleration y(m / s ^ 2)"',
-        '"Acceleration z(m / s ^ 2)"',
+        '"Acceleration x (m/s^2)"',
+        '"Acceleration y (m/s^2)"',
+        '"Acceleration z (m/s^2)"',
         '"Absolute acceleration (m/s^2)"'
       ]
 
