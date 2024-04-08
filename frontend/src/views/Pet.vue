@@ -64,14 +64,14 @@ import Chart from '../components/Chart.vue'
             <v-list lines="two" v-if="recordings?.length > 0">
               <v-list-item v-for="recording in recordings" :key="recording.id" :subtitle="`Recording #${recording.id}`">
 
-                <template v-slot:prepend>
-                    <v-chip class="mr-3" color="secondary" v-if="recording.processedData">
-                      {{ recording.processedData.respirations || 0 }}
-                    </v-chip>
-                </template>
+                <!-- <template v-slot:prepend>
+                  <v-chip class="mr-3" color="secondary" v-if="recording.processedData">
+                    {{ recording.processedData.respirations || 0 }}
+                  </v-chip>
+                </template> -->
                 <v-row>
                   <v-col>
-                    <p>{{ recording.records.length }} data points recorded.</p>
+                    <p>Readings: {{ recording.records.length }},  Respirations: {{ recording?.processedData?.respirations || "N/A" }}</p>
                     <p>{{ new Date(recording.date).toLocaleString() }}</p>
                   </v-col>
                 </v-row>
@@ -81,8 +81,10 @@ import Chart from '../components/Chart.vue'
                 <template v-slot:append>
                   <v-btn color="grey-lighten-1" icon="mdi-download" variant="text"
                     @click="downloadDataAsCSV(recording)"></v-btn>
+                  <!-- <v-btn color="grey-lighten-1" icon="mdi-share" v-if="canShare"
+                    variant="text" @click="share(recording)"></v-btn> -->
                   <v-btn color="grey-lighten-1" icon="mdi-chart-line" variant="text"
-                    @click="showAlert('Coming soon!')"></v-btn>
+                    @click="showChart(recording)"></v-btn>
                   <v-btn color="grey-lighten-1" icon="mdi-delete" variant="text"
                     @click="showDeleteConfirmation(recording.id)"></v-btn>
                 </template>
@@ -92,21 +94,39 @@ import Chart from '../components/Chart.vue'
 
           </v-card-text>
         </v-card>
-
-
-        <v-card v-if="false" class="mx-auto">
-          <v-card-title>
-            Chart
-          </v-card-title>
-          <v-card-text>
-            <!-- <Chart /> -->
-          </v-card-text>
-        </v-card>
-
       </v-col>
 
     </v-row>
+
+    <v-row>
+      <v-col>
+        <v-expansion-panels>
+          <v-expansion-panel>
+            <v-expansion-panel-title>Debug Info</v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <p><strong>Processing Endpoint</strong>: <code>{{ api_endpoint }}</code></p>
+              <p><strong>Recording Length</strong>: <code>{{ countDown }}s</code></p>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
+      </v-col>
+    </v-row>
   </v-container>
+  <v-dialog width="80%" v-model="chartDisplay">
+
+    <template v-slot:default="{ isActive }">
+      <v-card title="Accelerometer Readings over Time (s)">
+        <v-card-text>
+          <Chart :data="chartData" />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+
+          <v-btn text="Close" variant="flat" color="primary" @click="isActive.value = false"></v-btn>
+        </v-card-actions>
+      </v-card>
+    </template>
+  </v-dialog>
   <v-snackbar v-model="snackbar" vertical>
     <p>{{ snackbarMessage }}</p>
   </v-snackbar>
@@ -137,8 +157,10 @@ import Chart from '../components/Chart.vue'
 
           <section v-else>
             <h4>Recording Complete</h4>
-            <p>Save ({{ count }}) Records? </p>
-            <v-btn color="primary" class="mt-5 mr-3" v-if="!isRecording" @click="saveRecording">Save</v-btn>
+            <p v-if="!isProcessing">Save ({{ count }}) Records? </p>
+            <p v-else>Processing...</p>
+            <v-btn color="primary" class="mt-5 mr-3" v-if="!isRecording" @click.once="saveRecording"
+              :loading="isProcessing">Save</v-btn>
             <v-btn color="primary" variant="tonal" class="mt-5" v-if="!isRecording"
               @click="cancelRecording">Cancel</v-btn>
           </section>
@@ -146,6 +168,7 @@ import Chart from '../components/Chart.vue'
       </v-row>
     </v-container>
   </v-navigation-drawer>
+
 </template>
 
 <style>
@@ -157,6 +180,7 @@ import Chart from '../components/Chart.vue'
 
 
 <script>
+
 import { liveQuery } from "dexie";
 import { useObservable } from "@vueuse/rxjs";
 import { toRaw } from 'vue';
@@ -176,13 +200,18 @@ export default {
       startTime: 0,
       endTime: import.meta.env.VITE_RECORDING_LIMIT_IN_SECONDS || 60,
       countDown: import.meta.env.VITE_RECORDING_LIMIT_IN_SECONDS || 60,
+      api_endpoint: import.meta.env.VITE_API_ENDPOINT || 'https://api.vitalpaws.info/',
       isRecording: false,
+      isProcessing: false,
       recordings: [],
       snackbar: false,
       snackbarMessage: '',
       deleteConfirmation: false,
       deleteId: null,
-
+      testCSV: null,
+      canShare: navigator.share ? true : false,
+      chartDisplay: false,
+      chartData: null
     }
   },
   methods: {
@@ -223,11 +252,12 @@ export default {
       this.countDown = Math.ceil(this.endTime-timeDeltaInSeconds)
       if(timeDeltaInSeconds >= this.endTime){
         this.stopRecording()
+        this.say('Recording complete')
       }else{
         this.records.push({
-          x: data.acceleration.x,
-          y: data.acceleration.y,
-          z: data.acceleration.z,
+          x: data.accelerationIncludingGravity.x,
+          y: data.accelerationIncludingGravity.y,
+          z: data.accelerationIncludingGravity.z,
           time: timeDeltaInSeconds
         })
   
@@ -235,14 +265,14 @@ export default {
       }
     
     },
-    getCSVasBlob(){
-      let records = toRaw(this.records)
+    getCSVasBlob(records=false){
+      records = records ?  toRaw(records) : toRaw(this.records)
       const headers = [
-        '"Time (s)"',
-        '"Acceleration x (m/s^2)"',
-        '"Acceleration y (m/s^2)"',
-        '"Acceleration z (m/s^2)"',
-        '"Absolute acceleration (m/s^2)"'
+        'Time (s)',
+        'Acceleration x (m/s^2)',
+        'Acceleration y (m/s^2)',
+        'Acceleration z (m/s^2)',
+        'Absolute acceleration (m/s^2)'
       ]
 
       let data = headers.join(',') + '\n'
@@ -251,7 +281,9 @@ export default {
         data += `"${record.time}","${record.x || 0}","${record.y || 0}","${record.z || 0}"`
         data += `,"${Math.sqrt(record.x ** 2 + record.y ** 2 + record.z ** 2) || 0}"\n`
       })
-      return new Blob([decodeURIComponent('%ef%bb%bf'), data], { type: 'text/csv;charset=utf-8' });
+
+      return this.testCSV ? new Blob([this.testCSV], { type: 'text/csv;charset=utf-8' }) : new Blob([data], { type: 'text/csv;charset=utf-8' });
+
     },
     downloadDataAsCSV(recording){
       let blob = this.getCSVasBlob()
@@ -262,17 +294,20 @@ export default {
       a.click();
     },
     async saveRecording(){
-      console.log('saving')
+      this.isProcessing = true
+      console.log('processing...')
 
       // Process the data
       let results = await this.processRecording()
 
+      console.log('Saving...')
       await db.recordings.put({
         petId: this.pet.id,
         date: Date.now(),
         processedData: results || null,
         records: toRaw(this.records)
       })
+      this.isProcessing = false
       this.cancelRecording()
     },
     async deleteRecording(){
@@ -294,26 +329,57 @@ export default {
       this.deleteConfirmation = true
     },
     async processRecording(){
-      const endpoint = import.meta.env.VITE_API_ENDPOINT || 'https://api.vitalpaws.info/'
 
       var data = new FormData()
-      data.append('file', new File([this.getCSVasBlob()], 'motion_data.csv'))
+      data.append('csv_file', new File([this.getCSVasBlob()], 'motion_data.csv'))
 
       try {
-        let response = await fetch(endpoint, {
+        let response = await fetch(this.api_endpoint, {
           method: 'POST',
           body: data
         })
         return await response.json() // if the response is a JSON object
       } catch (error) {
+        alert(`An error occurred while processing the data: ${error}`)
         console.log(error)
       }
+    },
+    say(something){
+      if ('speechSynthesis' in window) {
+        let utterance = new SpeechSynthesisUtterance(something);
+        speechSynthesis.speak(utterance);
+      }
+    },
+    share(recording){
+      let shareData = {
+        title: `Motion Data for ${this.pet.name}`,
+        text: `Motion data recorded for ${this.pet.name} on ${new Date(recording.date).toLocaleString()}`,
+        files: [new File([this.getCSVasBlob(recording.records)], `${recording.date}_${this.pet.name}_motion_data.csv`)]
+      }
+
+      if(navigator.canShare(shareData)){
+        navigator.share(shareData)
+      }
+
+
+    },
+    showChart(recording){
+      this.chartData = recording.records
+      this.chartDisplay = true
     }
   },
   async created() {
-    // if(isDeviceMotionSupported() && !isPermissionRequired() ) {
-    //   this.sensorPermission = true
-    // }
+
+    // Set VITE_USE_FAKE_SENSOR_DATA to true in .env to use fake sensor data
+    // Helpful when testing on a device without sensors (like a desktop)
+    const useFakeSensorData = (import.meta.env?.VITE_USE_FAKE_SENSOR_DATA === 'true') || false
+    if (useFakeSensorData){
+      console.log('Using fake sensor data')
+      let csv = await fetch('/test2.csv')
+      this.testCSV = await csv.text()
+    }
+
+
     const petId = Number(this.$route.params.id);
     this.pet = await db.pets.get(petId)
     this.pet.photo = this.pet.photo ? URL.createObjectURL(this.pet.photo) : null
