@@ -2,14 +2,19 @@
 defineProps({
   data: {
     type: Array,
-    required: false
+    required: false,
+    default: false
   },
 
 })
 </script>
 
 <template>
-  <Line v-if="chartData.datasets[0]?.data.length>0" id="my-chart-id" :options="chartOptions" :data="chartData" />
+  <p class="caption mb-4"><small>For the best viewing experience, please close the chart and reopen in landscape
+      mode.</small></p>
+  <div class="chart-container" style="position: relative;  width:100%">
+    <Line v-if="chartData.datasets[0]?.data.length>0" id="my-chart-id" :options="chartOptions" :data="chartData" />
+  </div>
 </template>
 
 <script>
@@ -53,7 +58,8 @@ export default {
   },
   methods: {
     async getSampleData() {
-      return import("../sampleData.json")
+      let data = await import("../sampleData.json")
+      return data.default
     },
     labels(config){
       var cfg = config || {};
@@ -75,8 +81,12 @@ export default {
     }
   },
   async mounted() {
-    const data = this.data || this.getSampleData()
+    const useFakeSensorData = (import.meta.env?.VITE_USE_FAKE_SENSOR_DATA === 'true') || false
+    
+    console.log(useFakeSensorData)
+    const data = (useFakeSensorData || (this.data == false)) ? await this.getSampleData() : this.data
 
+    console.log(data)
     const end = Math.ceil(this.data[this.data.length-1].time)
 
 
@@ -84,8 +94,9 @@ export default {
     let y = data.map(d => d.y)
     let z = data.map(d => d.z)
     let abs = data.map(d => d.abs)
-    // let time = data.map(d => d.time)
-    this.chartData.labels = this.labels({max: end})
+    let time = data.map(d => d.time)
+    // this.chartData.labels = this.labels({ max: end })
+    this.chartData.labels = time
 
 
     this.chartData.datasets.push({
@@ -112,5 +123,14 @@ export default {
 }
 </script>
 <style scoped>
-
+.caption {
+  border: 1px solid rgb(235, 235, 125);
+  padding: .5em;
+  background-color:rgb(255, 255, 175)
+}
+ @media screen and (orientation:landscape) {
+  .caption {
+    display: none;
+  }
+ }
 </style>
