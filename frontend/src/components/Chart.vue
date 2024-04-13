@@ -124,13 +124,14 @@ export default {
 </script>
 <style scoped>
 .caption {
+  display:none;
   border: 1px solid rgb(235, 235, 125);
   padding: .5em;
   background-color:rgb(255, 255, 175)
 }
- @media screen and (orientation:landscape) {
+@media only screen and (max-device-width: 640px) and (orientation:portrait) {
   .caption {
-    display: none;
+    display: block
   }
- }
+}
 </style>
