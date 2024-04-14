@@ -93,8 +93,10 @@ export default {
     let x = data.map(d => d.x)
     let y = data.map(d => d.y)
     let z = data.map(d => d.z)
-    let abs = data.map(d => d.abs)
-    let time = data.map(d => d.time)
+
+    // Calculate the absolute acceleration (in case the data wasn't stored from old versions of the app)
+    let abs = data.map(d => Math.sqrt(d.x ** 2 + d.y ** 2 + d.z ** 2) || 0)
+    let time = data.map(d => Number(d.time).toFixed(2))
     // this.chartData.labels = this.labels({ max: end })
     this.chartData.labels = time
 

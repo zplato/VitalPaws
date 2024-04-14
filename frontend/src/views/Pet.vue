@@ -254,10 +254,12 @@ export default {
         this.stopRecording()
         this.say('Recording complete')
       }else{
+        let {x, y, z} = data.accelerationIncludingGravity
         this.records.push({
-          x: data.accelerationIncludingGravity.x,
-          y: data.accelerationIncludingGravity.y,
-          z: data.accelerationIncludingGravity.z,
+          x,
+          y,
+          z,
+          abs: Math.sqrt(x ** 2 + y ** 2 + z ** 2) || 0,
           time: timeDeltaInSeconds
         })
   
