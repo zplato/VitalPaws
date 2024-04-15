@@ -97,9 +97,9 @@ export default {
       this.$router.push('/');
     },
     photoChanged(file) {
-      this.pet.photo = file[0]
-      this.photoPreview = URL.createObjectURL(file[0])
-
+      let img = Array.isArray(file) ? file[0] : file
+      this.pet.photo = img
+      this.photoPreview = URL.createObjectURL(img)
     },
   },
   async created() {
